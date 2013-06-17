@@ -1,18 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
+#include "hash.h"
 
-#define HASH_SIZE 10
-
-struct hash {
-	unsigned int count;
-	char *arr1[HASH_SIZE];
-	char *arr2[HASH_SIZE];
-};
-
-struct hash* hash_init()
+struct hash* hash_init(char *hash_type)
 {
 	struct hash *my_hash = malloc( sizeof(struct hash) );
+	
 	int c = 0;
 	while (c < HASH_SIZE)
 	{
@@ -20,16 +11,34 @@ struct hash* hash_init()
 		my_hash->arr2[c]=NULL;
 		c++;
 	}
+	my_hash->hash_type = hash_type;
+
 	return my_hash;
 }
 
-void insert(struct hash *my_hash, char* key, char* value)
+void destroy_list_or_tree(char* hash_type, void* element)
+{
+	// free old linked_list from slot
+		if ( !strncmp(hash_type, "list", 4) )
+			list_destroy(element);
+		// free old binary_tree from slot
+		else if ( !strncmp(hash_type, "tree", 4) )
+			destroy_tree(element);
+}
+
+void hash_insert(struct hash *my_hash, char* key, void* value)
 {
 	int index;
-	index = get_index(my_hash, key);
-	if (index == -1)
+	index = hash_get_index(my_hash, key);
+	// found needed slot for insertion, it used
+	if (index != -1)
 	{
-		index = search_free_place(my_hash);
+		destroy_list_or_tree(my_hash->hash_type, my_hash->arr2[index]);
+	}
+	// not found needed slot in used ones, search in free slots
+	else
+	{
+		index = hash_search_free_place(my_hash);
 	}
 	if (index != -1)
 	{
@@ -38,17 +47,17 @@ void insert(struct hash *my_hash, char* key, char* value)
 	}
 }
 
-void delete(struct hash *my_hash, char* key)
+void hash_delete(struct hash *my_hash, char* key)
 {
-	int index = search_free_place(my_hash);
+	int index = hash_search_free_place(my_hash);
 	if (index != -1)
 	{
 		my_hash->arr1[index]=NULL;
-		my_hash->arr2[index]=NULL;
+		destroy_list_or_tree(my_hash->hash_type, my_hash->arr2[index]);
 	}
 }
 
-char* get(struct hash *my_hash, char* key)
+void* hash_get(struct hash *my_hash, char* key)
 {
 	int c = 0;
 	while (c < HASH_SIZE)
@@ -62,7 +71,7 @@ char* get(struct hash *my_hash, char* key)
 	return NULL;
 }
 
-int get_index(struct hash *my_hash, char* key)
+int hash_get_index(struct hash *my_hash, char* key)
 {
 	int c = 0;
 	while (c < HASH_SIZE)
@@ -76,7 +85,7 @@ int get_index(struct hash *my_hash, char* key)
 	return -1;
 }
 
-int search_free_place(struct hash *my_hash)
+int hash_search_free_place(struct hash *my_hash)
 {
 	int c = 0;
 	while (c < HASH_SIZE)
@@ -90,37 +99,30 @@ int search_free_place(struct hash *my_hash)
 	return -1;
 }
 
-void iterate(struct hash *my_hash)
+void hash_iterate(struct hash *my_hash)
 {
-	int c = 0;
-	while (c < HASH_SIZE)
+	int c;
+	for (c = 0; c < HASH_SIZE; c++)
 	{
 		if (my_hash->arr1[c] != NULL)
 		{
-			printf("%s - %s\n", my_hash->arr1[c], my_hash->arr2[c]);
+			if ( !strncmp(my_hash->hash_type, "list", 4) )
+				printf("%s - [list]\n", my_hash->arr1[c]);
+			else if ( !strncmp(my_hash->hash_type, "tree", 4) )
+				printf("%s - [tree]\n", my_hash->arr1[c]);
 		}
-		++c;
 	}
 }
 
-void destroy(struct hash *my_hash)
+void hash_destroy(struct hash *my_hash)
 {
+	int c;
+	for (c = 0; c < HASH_SIZE; c++)
+	{
+		if (my_hash->arr1[c] != NULL)
+		{
+			destroy_list_or_tree(my_hash->hash_type, my_hash->arr2[c]);
+		}
+	}
 	free(my_hash);
-}
-
-int main()
-{
-	struct hash *my_hash;
-
-	my_hash = hash_init();
-	insert(my_hash, "key1", "value1");
-	insert(my_hash, "key2", "value2");
-	insert(my_hash, "key2", "value3");
-	//char* s_val = "key2";
-	//char* r_val = get(my_hash, s_val);
-	//printf("%s - %s\n", s_val, r_val);
-	iterate(my_hash);
-	destroy(my_hash);
-
-	return 0;
 }
